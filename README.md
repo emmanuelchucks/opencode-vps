@@ -44,10 +44,10 @@ A fast CLI for managing remote [OpenCode](https://github.com/sst/opencode) sessi
 3. Set environment variables (add to your shell rc):
 
    ```bash
-   export OPENCODE_VPS_HOST="vps"                              # SSH host (default: vps)
-   export OPENCODE_VPS_PROJECTS_DIR="/home/user/projects"      # remote projects path
-   export OPENCODE_VPS_SERVER_URL="http://localhost:4096"       # OpenCode server URL
-   export OPENCODE_SERVER_PASSWORD="your-password"    # if server is password-protected
+   export OPENCODE_VPS_HOST="vps"
+   export OPENCODE_VPS_PROJECTS_DIR="/home/user/projects"
+   export OPENCODE_VPS_SERVER_URL="http://localhost:4096"
+   export OPENCODE_SERVER_PASSWORD="your-password"
    ```
 
 4. Run:
