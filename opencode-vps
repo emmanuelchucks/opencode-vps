@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VPS="${OC_VPS:-vps}"
-PROJECTS_DIR="${OC_PROJECTS_DIR:-/home/ubuntu/projects}"
-SERVER_URL="${OC_SERVER_URL:-http://localhost:4096}"
+VPS="${OPENCODE_VPS_HOST:-vps}"
+PROJECTS_DIR="${OPENCODE_VPS_PROJECTS_DIR:-/home/ubuntu/projects}"
+SERVER_URL="${OPENCODE_VPS_SERVER_URL:-http://localhost:4096}"
 CACHE_DIR="${HOME}/.cache/opencode-vps"
 CACHE_FILE="${CACHE_DIR}/projects.txt"
 
