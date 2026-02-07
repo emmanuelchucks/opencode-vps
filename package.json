@@ -1,8 +1,0 @@
-{
-  "name": "oc",
-  "version": "1.0.0",
-  "type": "module",
-  "bin": {
-    "oc": "./src/index.ts"
-  }
-}

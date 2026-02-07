@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VPS="${OC_VPS:-vps}"
+PROJECTS_DIR="${OC_PROJECTS_DIR:-/home/ubuntu/projects}"
+SERVER_URL="${OC_SERVER_URL:-http://localhost:4096}"
+CACHE_DIR="${HOME}/.cache/opencode-vps"
+CACHE_FILE="${CACHE_DIR}/projects.txt"
+
+mkdir -p "$CACHE_DIR"
+
+# Pre-warm SSH connection (ControlMaster) + refresh cache in one shot
+ssh "$VPS" "ls -1 $PROJECTS_DIR 2>/dev/null" > "${CACHE_FILE}.tmp" 2>/dev/null \
+  && mv "${CACHE_FILE}.tmp" "$CACHE_FILE" &
+
+# Read cache immediately
+projects=""
+[[ -f "$CACHE_FILE" ]] && projects=$(<"$CACHE_FILE")
+
+# No cache yet — wait for the fetch
+if [[ -z "$projects" ]]; then
+  wait
+  [[ -f "$CACHE_FILE" ]] && projects=$(<"$CACHE_FILE")
+fi
+
+# Build attach command
+attach_cmd() {
+  local dir="$1"
+  local cmd="opencode attach $SERVER_URL"
+  [[ -n "${OPENCODE_SERVER_PASSWORD:-}" ]] && cmd="$cmd --password $OPENCODE_SERVER_PASSWORD"
+  [[ -n "$dir" ]] && cmd="$cmd --dir $dir"
+  echo "$cmd"
+}
+
+# Direct attach if project name given as argument
+if [[ ${1:-} ]] && [[ "$1" != -* ]]; then
+  exec ssh -t "$VPS" "$(attach_cmd "$PROJECTS_DIR/$1")"
+fi
+
+# Interactive picker loop
+while true; do
+  choices=$(printf '(global)\n%s\n+ new' "$(printf '%s' "$projects" | sort)")
+
+  result=$(printf '%s' "$choices" | fzf \
+    --height=~50% \
+    --layout=reverse \
+    --prompt='project> ' \
+    --header='enter:attach  ^r:restart  ^f:refresh' \
+    --cycle \
+    --expect=ctrl-r,ctrl-f \
+  ) || exit 0
+
+  key=$(head -1 <<< "$result")
+  selected=$(tail -1 <<< "$result")
+
+  # ctrl-f: force refresh
+  if [[ "$key" == "ctrl-f" ]]; then
+    echo "Refreshing..."
+    ssh "$VPS" "ls -1 $PROJECTS_DIR 2>/dev/null" > "$CACHE_FILE" 2>/dev/null
+    projects=$(<"$CACHE_FILE")
+    continue
+  fi
+
+  [[ -z "$selected" ]] && continue
+
+  # + new: create project
+  if [[ "$selected" == "+ new" ]]; then
+    name=$(echo "" | fzf --height=~50% --layout=reverse --prompt='name> ' --print-query | head -1) || continue
+    [[ -z "$name" ]] && continue
+    ssh "$VPS" "mkdir -p $PROJECTS_DIR/$name"
+    echo "$name" >> "$CACHE_FILE"
+    projects=$(<"$CACHE_FILE")
+    continue
+  fi
+
+  # ctrl-r: restart server
+  if [[ "$key" == "ctrl-r" ]]; then
+    ssh "$VPS" "systemctl --user restart opencode"
+    echo "Restarted server"
+    sleep 1
+  fi
+
+  # Attach
+  if [[ "$selected" == "(global)" ]]; then
+    exec ssh -t "$VPS" "$(attach_cmd "")"
+  else
+    exec ssh -t "$VPS" "$(attach_cmd "$PROJECTS_DIR/$selected")"
+  fi
+done

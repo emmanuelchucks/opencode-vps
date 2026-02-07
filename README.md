@@ -1,71 +1,82 @@
-# oc
+# opencode-vps
 
-A fast CLI for managing remote OpenCode sessions.
-
-Connects to an OpenCode server over SSH/HTTP and lets you quickly switch between project directories with fzf.
+A fast CLI for managing remote [OpenCode](https://github.com/sst/opencode) sessions over SSH.
 
 ## Features
 
-- **Instant startup** - Project list is cached locally and refreshed in the background
-- **fzf integration** - Fuzzy search through your projects
-- **Directory-scoped sessions** - Each project gets its own isolated OpenCode sessions
-- **Simple keybinds** - `enter` to connect, `ctrl-r` to restart server, `ctrl-f` to refresh
+- **Instant startup** — cached project list, background refresh
+- **SSH multiplexing** — near-zero latency on repeat connections
+- **fzf picker** — fuzzy search, create new projects inline
+- **Directory-scoped sessions** — each project gets isolated context
+- **Zero dependencies** — pure bash, no runtime needed
 
 ## Requirements
 
-- [Bun](https://bun.sh)
 - [fzf](https://github.com/junegunn/fzf)
-- [OpenCode](https://github.com/sst/opencode) server running remotely
 - SSH access to your server
+- [OpenCode](https://github.com/sst/opencode) server running remotely
 
 ## Setup
 
-1. Clone and link:
+1. Clone and add to PATH:
+
    ```bash
-   git clone https://github.com/emmanuelchucks/oc-cli.git
-   cd oc-cli
-   bun link
+   git clone https://github.com/emmanuelchucks/opencode-vps.git
+   ln -s "$(pwd)/opencode-vps/opencode-vps" ~/.local/bin/opencode-vps
    ```
 
-2. Set up your environment (add to your shell rc file):
-   ```bash
-   export OC_VPS="user@your-server"
-   export OC_PROJECTS_DIR="/path/to/projects"
-   export OC_SERVER_URL="http://your-server:4096"
+2. Configure SSH multiplexing for faster connections (recommended):
+
+   ```
+   # ~/.ssh/config
+   Host vps
+     HostName your-server-ip
+     User your-user
+     ControlMaster auto
+     ControlPath ~/.ssh/sockets/%r@%h-%p
+     ControlPersist 600
    ```
 
-3. Create the cache directory and populate it:
    ```bash
-   mkdir -p ~/.cache/oc-cli
-   ssh $OC_VPS ls -1 $OC_PROJECTS_DIR > ~/.cache/oc-cli/projects.txt
+   mkdir -p ~/.ssh/sockets
    ```
 
-4. Run it:
+3. Set environment variables (add to your shell rc):
+
    ```bash
-   oc
+   export OC_VPS="vps"                              # SSH host (default: vps)
+   export OC_PROJECTS_DIR="/home/user/projects"      # remote projects path
+   export OC_SERVER_URL="http://localhost:4096"       # OpenCode server URL
+   export OPENCODE_SERVER_PASSWORD="your-password"    # if server is password-protected
+   ```
+
+4. Run:
+
+   ```bash
+   opencode-vps
    ```
 
 ## Usage
 
 ```
-oc
+opencode-vps              # interactive picker
+opencode-vps my-project   # direct attach to a project
 ```
 
-Use fzf to select a project and press enter. You'll be attached to OpenCode scoped to that directory.
-
-| Keybind | Action |
-|---------|--------|
-| `enter` | Connect to selected project |
+| Key | Action |
+|-----|--------|
+| `enter` | Attach to selected project |
 | `ctrl-r` | Restart OpenCode server |
 | `ctrl-f` | Force refresh project list |
+| `ctrl-n` / `ctrl-p` | Navigate up/down |
 
-Select `(global)` to attach without directory scoping (full system access).
+Select `(global)` to attach without directory scoping.
 
 Select `+ new` to create a new project directory on the server.
 
 ## How it works
 
-On startup, the CLI reads a cached project list from `~/.cache/oc-cli/projects.txt` for instant display, then kicks off a background SSH to refresh the cache for next time. When you pick a project, it runs `opencode attach` with `--dir` to scope the session.
+On launch, the cached project list is displayed instantly via fzf while a background SSH refreshes the cache. SSH connection multiplexing (`ControlMaster`) keeps repeat connections fast. When you pick a project, a single SSH call runs `opencode attach` scoped to that directory.
 
 ## License
 
